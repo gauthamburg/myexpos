@@ -1,0 +1,24 @@
+decl
+ int a,b,r,t;
+enddecl
+
+int main(){
+
+ begin
+  r=exposcall("Read",-1,a);
+  r=exposcall("Read",-1,b);
+  breakpoint;
+  
+  while(b!=0)do
+   t=b;
+   b=a%b;
+   a=t;
+  endwhile;
+  
+  r=exposcall("Write",-2,a);
+  
+  return 0;
+  
+ end
+}
+  

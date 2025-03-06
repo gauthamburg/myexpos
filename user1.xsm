@@ -1,0 +1,7 @@
+MOV R16, "muhammed_ismail"
+PORT P1, R16
+OUT
+MOV R16, "B230434CS"
+PORT P1, R16
+OUT
+HALT
