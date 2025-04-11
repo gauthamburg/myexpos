@@ -1,118 +1,81 @@
-//Semget and Semrelease wrappers
-alias cpid R1;
-alias centry R2;
-alias uptr R3;
-alias syscall R4;
+alias user_sp R1;
+user_sp = SP;
 
-cpid=[SYSTEM_STATUS_TABLE + 1];
-centry = PROCESS_TABLE + cpid*16;
+alias ret_addr R2;
+ret_addr = [PTBR + 2*(user_sp-1)/512]*512 + (user_sp-1)%512;
 
-//Switch Stacks
-[centry + 13] = SP;
-uptr = SP;
-SP = [centry + 11]*512 -1;
+alias syscall_num R3;
+syscall_num = [[PTBR + 2*(user_sp-5)/512]*512 + (user_sp-5)%512];
 
-//Extract Syscall
-syscall = [[PTBR + (uptr-5)*2/512]*512 + (uptr-5)%512];
-if(syscall == INT_SEMGET) then
-  //Mode flag
-  [centry + 9] = INT_SEMGET;
-  alias rentry R5;
-  alias iter R6;  
-  //get resource table from uap 
-  rentry = [centry + 11]*512 + RESOURCE_TABLE_OFFSET;
-  iter =0;
-  //iterate resource table
-  while(iter < 8) do 
-    //if resource entry free
-    if([rentry+2*iter] == -1)then
-      break;
+alias arg1 R4;
+arg1 = [[PTBR + 2*(user_sp-4)/512]*512 + (user_sp-4)%512];
+
+alias pid R5;
+pid = [SYSTEM_STATUS_TABLE + 1];
+
+alias resouce_table R6;
+resouce_table = ([PROCESS_TABLE + 16*pid + 11] + 1)*512 - 16;
+
+SP = [PROCESS_TABLE + 16*pid + 11]*512 - 1;
+
+[PROCESS_TABLE + 16*pid + 9] = syscall_num;
+
+//------------fn definition---------------//
+
+if(syscall_num == 17) then //Semget syscall
+    R7 = 0;
+    while(R7 < 16) do
+        if([resouce_table + R7] == -1) then
+            break;
+        endif;
+        R7 = R7 + 2;
+    endwhile;
+
+    if(R7 >= 16) then
+        [ret_addr] = -1;
+        goto return_to_user;
     endif;
-    iter=iter+1;
-  endwhile;
 
-  //no free netry in resource table
-  if(iter == 8) then
-    //return value to -2
-    [[PTBR + (uptr-1)*2/512]*512 + (uptr-1)%512] = -1;
-    //reset mode
-    [centry + 9] = 0;
-    //switch stacks
-    SP = [centry + 13];
-    ireturn;
-  endif;
-  
-  //occupy this rentry with a semaphore
-  [rentry + iter*2] = SEMAPHORE;
-
-  [[PTBR + (uptr-1)*2/512]*512 + (uptr-1)%512] = iter;
-  multipush(R1,R2,R3,R4,R5,R6);
-
-    R1=ACQUIRE_SEMAPHORE;
-    R2=[SYSTEM_STATUS_TABLE + 1];
+    multipush(R1, R2, R3, R4, R5, R6, R7);
+    R1 = 6; //acquire semaphore
+    R2 = pid; //pid is R5
     call RESOURCE_MANAGER;
+    multipop(R1, R2, R3, R4, R5, R6, R7);
 
-  multipop(R1,R2,R3,R4,R5,R6);
+    if(R0 == -1) then
+        [ret_addr] = -2;
+        goto return_to_user;
+    endif;
 
-  //no free semaphores
-  if(R0 == -1) then
-    [[PTBR + (uptr-1)*2/512]*512 + (uptr-1)%512] = -2;
-    //reset mode
-    [centry + 9 ] = 0;
-    //switch stacks
-    SP = [centry + 13];
-    ireturn;
-  endif;
+    [resouce_table + R7] = SEMAPHORE;
+    [resouce_table + R7 + 1] = R0;
 
-  //return per process resource table index
-  [[PTBR + (uptr-1)*2/512]*512 + (uptr-1)%512] = iter;
-  [rentry + iter*2 + 1] = R0;
-  //loop thru it and find free entries
-  [centry + 9] =0;
-  //Switch stacks
-  SP = [centry + 13];
-  breakpoint;
-  ireturn;
+    [ret_addr] = R7/2;
+    goto return_to_user;
 endif;
 
-// semrelease syscall
-if(syscall == INT_SEMRELEASE) then
-  //Mode
-  [centry + 9] = INT_SEMRELEASE;
-  alias semid R6;
-  alias rentry R7;  
-  //Get argument 1 , i.e semid
-  semid = [[PTBR + (uptr-4)*2/512]*512 + (uptr-4)%512];
-  //get resource table from uap 
-  rentry = [centry + 11]*512 + RESOURCE_TABLE_OFFSET;
+if(syscall_num == 18) then //Semrelease
+    if(arg1 < 0 || arg1 >= 8) then
+        [ret_addr] = -1;
+        goto return_to_user;
+    endif;
 
-  //Invalid case
-  if( semid < 0 || semid > 7 || [rentry + semid*2] != SEMAPHORE) then
-    //set return value to -1
-    [[PTBR + (uptr-1)*2/512]*512 + (uptr-1)%512] = -1;
-    //byebye
-    [centry + 9] =0;
-    //Switch stacks
-    SP = [centry + 13];
-    ireturn;
-  endif;
-
-  //Call resource manager module
-  multipush(R1,R2,R3,R4,R5,R6,R7);
-    R1=RELEASE_SEMAPHORE;
-    R2=[SYSTEM_STATUS_TABLE + 1];
-    R3=[rentry+2*semid+1];
+    multipush(R1, R2, R3, R4, R5, R6);
+    R1 = 7; //Release semaphore
+    R2 = [resouce_table + 2*arg1 + 1]; //arg1 is R4
+    R3 = pid; //pid is R5
     call RESOURCE_MANAGER;
-  multipop(R1,R2,R3,R4,R5,R6,R7);
+    multipop(R1, R2, R3, R4, R5, R6);
 
-  [rentry + semid*2] = -1;
-  //sus
-  //[rentry + semid*2+1] = -1;
-  [[PTBR + (uptr-1)*2/512]*512 + (uptr-1)%512] = 0;
+    [resouce_table + 2*arg1] = -1;
+    [resouce_table + 2*arg1 + 1] = -1;
+
+    [ret_addr] = 0;
+    goto return_to_user;
 endif;
 
-//reset mode
-[centry + 9] =0;
-//Switch stacks
-SP = [centry + 13];
-ireturn;
+
+return_to_user:
+    [PROCESS_TABLE + 16*pid + 9] = 0;
+    SP = user_sp;
+    ireturn;

@@ -1,37 +1,17 @@
-//EXIT
-alias i R9;
-alias flag R10;
-alias offset R11 ;
-alias currPID R12 ;
-alias uptr R13;
-//Set some dying words 
-currPID = [SYSTEM_STATUS_TABLE+ 1];
-[PROCESS_TABLE + currPID * 16 + 9] = 10;
-[PROCESS_TABLE + currPID * 16 + 4] = TERMINATED;
+alias pid R0;
+pid = [SYSTEM_STATUS_TABLE + 1];
 
-//Switch Stacks
-[PROCESS_TABLE + currPID*16 + 13] = SP;
-uptr = SP ; 
-SP = [PROCESS_TABLE + currPID*16 + 11]*512 - 1;
+alias mode_flag R1;
+mode_flag = [PROCESS_TABLE + 16*pid + 9];
 
-//F to pay respects
-multipush(R12);
+[PROCESS_TABLE + 16*pid + 9] = 10; //exit syscall
+SP = [PROCESS_TABLE + 16*pid + 11]*512 - 1;
 
-R1 = EXIT_PROCESS;
-R2 = [SYSTEM_STATUS_TABLE+1];
+multipush(R0, R1);
+R1 = 3; //exit process
+R2 = pid; //pid is R0
 call PROCESS_MANAGER;
+multipop(R0, R1);
 
-multipop(R12);
-
-//Find another process to replace
-i=(currPID+1)%16;
-flag=0;
-
-while(i != currPID) do
-  if(i != 0 && [PROCESS_TABLE + i*16 + 4] != TERMINATED) then
-    call SCHEDULER;
-  endif;
-  i=(i+1)%16;
-endwhile;
-
-halt;
+call SCHEDULER;
+return;

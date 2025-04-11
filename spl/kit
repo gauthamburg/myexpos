@@ -1,0 +1,27 @@
+./spl $HOME/myexpos/spl/spl_progs/dosloader.spl
+./spl $HOME/myexpos/spl/spl_progs/dmod_7.spl
+./spl $HOME/myexpos/spl/spl_progs/dtimer.spl
+./spl $HOME/myexpos/spl/spl_progs/dconsole.spl
+./spl $HOME/myexpos/spl/spl_progs/ddisk.spl
+./spl $HOME/myexpos/spl/spl_progs/dexhandler.spl
+./spl $HOME/myexpos/spl/spl_progs/dint_10.spl
+./spl $HOME/myexpos/spl/spl_progs/dint_11.spl
+./spl $HOME/myexpos/spl/spl_progs/dint_12.spl
+./spl $HOME/myexpos/spl/spl_progs/dint_13.spl
+./spl $HOME/myexpos/spl/spl_progs/dint_14.spl
+./spl $HOME/myexpos/spl/spl_progs/dint_15.spl
+./spl $HOME/myexpos/spl/spl_progs/dint_16.spl
+./spl $HOME/myexpos/spl/spl_progs/dint_17.spl
+./spl $HOME/myexpos/spl/spl_progs/dint_4.spl
+./spl $HOME/myexpos/spl/spl_progs/dint_5.spl
+./spl $HOME/myexpos/spl/spl_progs/dint_6.spl
+./spl $HOME/myexpos/spl/spl_progs/dint_7.spl
+./spl $HOME/myexpos/spl/spl_progs/dint_8.spl
+./spl $HOME/myexpos/spl/spl_progs/dint_9.spl
+./spl $HOME/myexpos/spl/spl_progs/dmod_0.spl
+./spl $HOME/myexpos/spl/spl_progs/dmod_1.spl
+./spl $HOME/myexpos/spl/spl_progs/dmod_2.spl
+./spl $HOME/myexpos/spl/spl_progs/dmod_3.spl
+./spl $HOME/myexpos/spl/spl_progs/dmod_4.spl
+./spl $HOME/myexpos/spl/spl_progs/dmod_5.spl
+

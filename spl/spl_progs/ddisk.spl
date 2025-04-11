@@ -1,33 +1,20 @@
-alias iter R2;
-alias uptr R4;
-//save uptr
-[PROCESS_TABLE + [SYSTEM_STATUS_TABLE+ 1] * 16 + 13] = SP;
-uptr = SP;
+[PROCESS_TABLE + 16*[SYSTEM_STATUS_TABLE + 1] + 13] = SP;
+SP = [PROCESS_TABLE + 16*[SYSTEM_STATUS_TABLE + 1] + 11]*512 - 1;
 
-//switch to kernel stack (UAP)
-SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+ 1] * 16 + 11]*512 - 1;
-
-//backup context
 backup;
 
-//Release the disk status table
 [DISK_STATUS_TABLE] = 0;
 
-//loop through Process table
-iter =0 ;
-breakpoint;
-while(iter < 16) do
-  if([PROCESS_TABLE + iter*16 + 4] == WAIT_DISK)  then
-    //Set ready to processes which were waiting for disk
-    [PROCESS_TABLE + iter*16 +4] = READY; 
-  endif;
-  iter=iter+1;
+R0 = 1;
+while(R0 < 16) do
+    if([PROCESS_TABLE + 16*R0 + 4] == WAIT_DISK) then
+        [PROCESS_TABLE + 16*R0 + 4] = READY;
+    endif;
+    R0 = R0 + 1;
 endwhile;
 
-//restore context
 restore;
 
-//switch stacks
-SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 13];
-breakpoint;
+SP = [PROCESS_TABLE + 16*[SYSTEM_STATUS_TABLE+1] + 13];
+
 ireturn;

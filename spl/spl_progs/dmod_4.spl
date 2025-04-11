@@ -1,103 +1,95 @@
-// Device Manager
-alias funcNo R1;
-alias currPID R2;
-alias wordOut R3;
-alias retVal R5;
+alias ret_val R0;
+alias func_num R1;
+alias curr_pid R2;
+alias arg2 R3;
+alias arg3 R4;
 
+if(func_num == 1) then //disk store
+    multipush(R1, R2, R3, R4);
+    R1 = 3; //acquire disk
+    R2 = curr_pid;
+    call RESOURCE_MANAGER;
+    multipop(R1, R2, R3, R4);
 
-//TERMINAL WRITE
-if( funcNo == TERMINAL_WRITE) then
-  //acquire terminal
-  multipush(R0,R1,R2,R3);
+    [DISK_STATUS_TABLE + 1] = 1; //store
+    [DISK_STATUS_TABLE + 2] = arg2; //page
+    [DISK_STATUS_TABLE + 3] = arg3; //block
 
-  funcNo=ACQUIRE_TERMINAL;
-  currPID=[SYSTEM_STATUS_TABLE + 1];
-  call MOD_0;
+    store(arg2,arg3);
 
-  multipop(R0,R1,R2,R3);
+    [PROCESS_TABLE + 16*curr_pid + 4] = WAIT_DISK;
 
-  print R3;
+    multipush(R0, R1, R2, R3, R4);
+    call SCHEDULER;
+    multipop(R0, R1, R2, R3, R4);
 
-  multipush(R0,R1,R2,R3);
-
-  funcNo=RELEASE_TERMINAL;
-  currPID=[SYSTEM_STATUS_TABLE + 1];
-  call MOD_0;
-
-  multipop(R0,R1,R2,R3);
-  return;
-
-endif;
-//TERMINAL READ
-if( funcNo == TERMINAL_READ) then
-  //Acquire terminal
-  multipush(R0,R1,R2,R3);
-
-  funcNo=ACQUIRE_TERMINAL;
-  currPID=[SYSTEM_STATUS_TABLE + 1];
-  call MOD_0;
-
-  multipop(R0,R1,R2,R3);
-
-  read;
-
-  //set process to wait_terminal
-  [PROCESS_TABLE + currPID*16 + 4] = WAIT_TERMINAL;
-
-  //call scheduler
-  multipush(R0,R1,R2,R3);
-
-  call SCHEDULER;
-
-  multipop(R0,R1,R2,R3);
-
-  alias word R5;
-  word = ([PTBR + (R3)*2/512])*512 + (R3)%512;
-  [word] = [PROCESS_TABLE + currPID * 16 + 8];
-
-  return;
-  
-
-endif;//error
-
-//Disk load function
-if ( funcNo == DISK_LOAD) then
-  alias currpid R2;
-  alias pageno R3;
-  alias blockno R4;
-
-  //Acquire the device first
-  multipush(R1,R2,R3,R4);
-  
-  R1 = ACQUIRE_DISK;
-
-  call MOD_0;
-
-  multipop(R1,R2,R3,R4);
-
-  //Set disk status to load mode
-  [DISK_STATUS_TABLE + 1] = 0;
-  //Set page associated with disk op
-  [DISK_STATUS_TABLE + 2] = pageno;
-  //Set block associated with disk op
-  [DISK_STATUS_TABLE + 3] = blockno;
-
-  //blocking load 
-  load(pageno, blockno);
-
-  //Set current state of process to WAITDISK
-  [PROCESS_TABLE + currpid*16 + 4] = WAIT_DISK;
-
-  //schedule another process
-  multipush(R1,R2,R3,R4);
-
-  call SCHEDULER;
-
-  multipop(R1,R2,R3,R4);
-
-  return;
+    return;
 endif;
 
+if(func_num == 2) then //disk load
+    multipush(R0, R1, R2, R3, R4);
+    R1 = 3; //acquire disk
+    R2 = curr_pid;
+    call RESOURCE_MANAGER;
+    multipop(R0, R1, R2, R3, R4);
 
-R0=-1;
-return;
+    [DISK_STATUS_TABLE + 1] = 0; //load
+    [DISK_STATUS_TABLE + 2] = arg2; //page
+    [DISK_STATUS_TABLE + 3] = arg3; //block
+    
+    load(arg2,arg3);
+
+    [PROCESS_TABLE + 16*curr_pid + 4] = WAIT_DISK;
+
+    multipush(R0, R1, R2, R3, R4);
+    call SCHEDULER;
+    multipop(R0, R1, R2, R3, R4);
+
+    return;
+endif;
+
+if(func_num == 3) then  //terminal write
+    multipush(R0, R1, R2, R3);
+    R1 = 8; //acquire terminal
+    //R2 will be same
+    call RESOURCE_MANAGER;
+    //ignore R0 as acquire_terminal() doesn't have return value
+    multipop(R0, R1, R2, R3);
+
+    print R3;
+
+    multipush(R0, R1, R2, R3);
+    R1 = 9;  //release terminal
+    //R2 will be same
+    call RESOURCE_MANAGER;
+    R4 = R0; //save return value
+    multipop(R0, R1, R2, R3);
+    R0 = R4; //Return value should be in R0
+    return;
+endif;
+
+if(func_num == 4) then  //terminal read
+    multipush(R0, R1, R2, R3);
+    R1 = 8;  //acquire terminal
+    //R2 remains same
+
+    call RESOURCE_MANAGER;
+
+    multipop(R0, R1, R2, R3);
+
+    read;
+
+    [PROCESS_TABLE + 16*[SYSTEM_STATUS_TABLE+1] + 4] = WAIT_TERMINAL;
+
+    //calling scheduler
+
+    multipush(R0, R1, R2, R3);
+    call SCHEDULER;
+    multipop(R0, R1, R2, R3);
+
+    //compute physical address for return value
+
+    R4 = 512*[PTBR + 2*arg2/512] + arg2%512;
+    [R4] = [PROCESS_TABLE + 16*[SYSTEM_STATUS_TABLE+1] + 8];
+    return;
+endif;
